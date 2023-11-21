@@ -19,30 +19,30 @@ type Server struct {
 }
 
 func (s *Server) Start() {
-	fmt.Println("[Sstart] Server Listener at IP:%s, Prot:%d, is starting\n", s.IP, s.Port)
+	fmt.Printf("[Start] Server Listener at IP:%s, Prot:%d, is starting\n", s.IP, s.Port)
 
 	go func() {
 		// 1. 获取一个TCP的Addr
 		addr, err := net.ResolveTCPAddr(s.IPVersion, fmt.Sprintf("%s:%d", s.IP, s.Port))
 		if err != nil {
-			fmt.Println("resolve tcp addr error:", err)
+			fmt.Printf("resolve tcp addr error:%s\n", err)
 			return
 		}
 
 		// 2. 监听服务器的地址
 		listener, err := net.ListenTCP(s.IPVersion, addr)
 		if err != nil {
-			fmt.Println("listen：", s.IPVersion, "error:", err)
+			fmt.Printf("listen IP:%s  error:%s\n", s.IPVersion, err)
 			return
 		}
-		fmt.Println("start zinx server succ,：", s.Name, "succ listenning...")
+		fmt.Printf("start zinx server succ, listenning:%s\n", s.Name)
 
 		// 3. 阻塞的等待客户端连接，处理客户端的业务
 		for {
 			// 如果有客户端连接过来， 阻塞会返回
 			conn, err := listener.AcceptTCP()
 			if err != nil {
-				fmt.Println("Accept err：", err)
+				fmt.Printf("Accept err:%s\n", err)
 				continue
 			}
 
@@ -53,13 +53,14 @@ func (s *Server) Start() {
 					cnt, err := conn.Read(buf)
 
 					if err != nil {
-						fmt.Println("recv buff err：", err)
+						fmt.Printf("recv buff err:%s\n", err)
 						continue
 					}
+					fmt.Printf("recv clint buf:%s, cnt:%d\n", buf, cnt)
 
 					// 回显功能
 					if _, err := conn.Write(buf[:cnt]); err != nil {
-						fmt.Println("write back buff err：", err)
+						fmt.Printf("write back buff err:%s\n", err)
 						continue
 					}
 				}
