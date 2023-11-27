@@ -2,6 +2,7 @@ package znet
 
 import (
 	"GoZinx/ziface"
+	"errors"
 	"fmt"
 	"net"
 )
@@ -18,6 +19,16 @@ type Server struct {
 	Port int
 }
 
+// 定义当前客户端所绑定的handle api
+func CallBackToClient(conn *net.TCPConn, data []byte, cnt int) error {
+	fmt.Printf("[Conn Handle] CallBackToClient...\n")
+	if _, err := conn.Write(data[:cnt]); err != nil {
+		fmt.Printf("write back buf err:%d", err)
+		return errors.New("CallBackToClient error\n")
+	}
+	return nil
+}
+
 func (s *Server) Start() {
 	fmt.Printf("[Start] Server Listener at IP:%s, Prot:%d, is starting\n", s.IP, s.Port)
 
@@ -25,18 +36,20 @@ func (s *Server) Start() {
 		// 1. 获取一个TCP的Addr
 		addr, err := net.ResolveTCPAddr(s.IPVersion, fmt.Sprintf("%s:%d", s.IP, s.Port))
 		if err != nil {
-			fmt.Printf("resolve tcp addr error:%s\n", err)
+			fmt.Printf("resolve tcp addr err:%s\n", err)
 			return
 		}
 
 		// 2. 监听服务器的地址
 		listener, err := net.ListenTCP(s.IPVersion, addr)
 		if err != nil {
-			fmt.Printf("listen IP:%s  error:%s\n", s.IPVersion, err)
+			fmt.Printf("listen IP:%s  err:%s\n", s.IPVersion, err)
 			return
 		}
 		fmt.Printf("start zinx server succ, listenning:%s\n", s.Name)
 
+		var cid uint32
+		cid = 0
 		// 3. 阻塞的等待客户端连接，处理客户端的业务
 		for {
 			// 如果有客户端连接过来， 阻塞会返回
@@ -45,26 +58,11 @@ func (s *Server) Start() {
 				fmt.Printf("Accept err:%s\n", err)
 				continue
 			}
+			// 将处理新连接的业务方法和Conn 进行绑定
+			dealConn := NewConnection(conn, cid, CallBackToClient)
+			cid++
 
-			// 已经与客户端建立连接，做一些业务
-			go func() {
-				for {
-					buf := make([]byte, 512)
-					cnt, err := conn.Read(buf)
-
-					if err != nil {
-						fmt.Printf("recv buff err:%s\n", err)
-						continue
-					}
-					fmt.Printf("recv clint buf:%s, cnt:%d\n", buf, cnt)
-
-					// 回显功能
-					if _, err := conn.Write(buf[:cnt]); err != nil {
-						fmt.Printf("write back buff err:%s\n", err)
-						continue
-					}
-				}
-			}()
+			go dealConn.Start()
 		}
 	}()
 
