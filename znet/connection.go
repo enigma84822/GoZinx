@@ -26,7 +26,7 @@ type Connection struct {
 	ExitChan chan bool
 }
 
-func NewConnection(conn *net.TCPConn, connID uint32, callback_api ziface.HandleFunc) *Connection {
+func NewConnection(conn *net.TCPConn, connID uint32, callback_api ziface.HandleFunc) ziface.IConnection {
 	c := &Connection{
 		Conn:      conn,
 		ConnID:    connID,
