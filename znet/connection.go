@@ -1,6 +1,7 @@
 package znet
 
 import (
+	"GoZinx/utils"
 	"GoZinx/ziface"
 	"fmt"
 	"net"
@@ -46,7 +47,7 @@ func (c *Connection) StartReader() {
 
 	for {
 		// 读取客户端的数据到buf中
-		buf := make([]byte, 512)
+		buf := make([]byte, utils.GlobalObject.MaxPackageSize)
 		_, err := c.Conn.Read(buf)
 		if err != nil {
 			fmt.Printf("recv buf err = %d\n", err)
@@ -60,9 +61,9 @@ func (c *Connection) StartReader() {
 
 		// 执行注册的路由方法
 		go func(request ziface.IRequest) {
-			c.Router.PreHandler(request)
-			c.Router.Handler(request)
-			c.Router.PostHandler(request)
+			c.Router.PreHandle(request)
+			c.Router.Handle(request)
+			c.Router.PostHandle(request)
 		}(&req)
 
 	}
