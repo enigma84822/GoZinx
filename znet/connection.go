@@ -25,16 +25,16 @@ type Connection struct {
 	ExitChan chan bool
 
 	// 当前的处理方法
-	Router ziface.IRouter
+	MsgHandler ziface.IMsgHandler
 }
 
-func NewConnection(conn *net.TCPConn, connID uint32, router ziface.IRouter) ziface.IConnection {
+func NewConnection(conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandler) ziface.IConnection {
 	c := &Connection{
-		Conn:     conn,
-		ConnID:   connID,
-		Router:   router,
-		isClosed: false,
-		ExitChan: make(chan bool, 1),
+		Conn:       conn,
+		ConnID:     connID,
+		MsgHandler: msgHandler,
+		isClosed:   false,
+		ExitChan:   make(chan bool, 1),
 	}
 	return c
 }
@@ -82,11 +82,7 @@ func (c *Connection) StartReader() {
 		}
 
 		// 执行注册的路由方法
-		go func(request ziface.IRequest) {
-			c.Router.PreHandle(request)
-			c.Router.Handle(request)
-			c.Router.PostHandle(request)
-		}(&req)
+		go c.MsgHandler.DoMsgHandler(&req)
 
 	}
 }
