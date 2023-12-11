@@ -17,9 +17,10 @@ type Server struct {
 	IP string
 	// 服务器监听的端口
 	Port int
-
 	// 消息管理
 	MsgHandler ziface.IMsgHandler
+	// 连接管理器
+	ConnMgr ziface.IConnManager
 }
 
 func (s *Server) Start() {
@@ -45,7 +46,7 @@ func (s *Server) Start() {
 			fmt.Printf("listen IP:%s  err:%s\n", s.IPVersion, err)
 			return
 		}
-		fmt.Printf("start zinx server succ, listenning:%s\n", s.Name)
+		fmt.Printf("start zinx server succ, listening:%s\n", s.Name)
 
 		var cid uint32
 		cid = 0
@@ -57,8 +58,17 @@ func (s *Server) Start() {
 				fmt.Printf("Accept err:%s\n", err)
 				continue
 			}
+
+			// 判断连接上限
+			if s.ConnMgr.Len() >= utils.GlobalObject.MaxConn {
+				//TODO 给客户端一个超出最大连接的错误包
+				fmt.Printf("Too  Many Connections MaxConn=%d\n", utils.GlobalObject.MaxConn)
+				conn.Close()
+				continue
+			}
+
 			// 将处理新连接的业务方法和Conn 进行绑定
-			dealConn := NewConnection(conn, cid, s.MsgHandler)
+			dealConn := NewConnection(s, conn, cid, s.MsgHandler)
 			cid++
 
 			go dealConn.Start()
@@ -68,6 +78,8 @@ func (s *Server) Start() {
 }
 
 func (s *Server) Stop() {
+	fmt.Printf("[Stop] Zinx server name=%s\n", s.Name)
+	s.ConnMgr.ClearConn()
 }
 
 func (s *Server) Server() {
@@ -83,6 +95,10 @@ func (s *Server) AddRouter(msgID uint32, router ziface.IRouter) {
 	fmt.Printf("Add Router Succ!!\n")
 }
 
+func (s *Server) GetConnMgr() ziface.IConnManager {
+	return s.ConnMgr
+}
+
 // 初始化Server
 func NewServer(name string) ziface.IServer {
 	s := &Server{
@@ -91,6 +107,7 @@ func NewServer(name string) ziface.IServer {
 		IP:         utils.GlobalObject.Host,
 		Port:       utils.GlobalObject.TcpPort,
 		MsgHandler: NewMsgHandler(),
+		ConnMgr:    NewConnManager(),
 	}
 	return s
 }
