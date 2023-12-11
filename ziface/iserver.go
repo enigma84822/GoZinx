@@ -13,4 +13,12 @@ type IServer interface {
 	AddRouter(msgID uint32, router IRouter)
 	// 获取ConnMgr
 	GetConnMgr() IConnManager
+	// 注册OnConnStart 钩子函数的 方法
+	SetOnConnStart(func(connection IConnection))
+	// 注册OnConnStop 钩子函数的 方法
+	SetOnConnStop(func(connection IConnection))
+	// 调用OnConnStart 钩子函数的 方法
+	CallOnConnStart(connection IConnection)
+	// 调用OnConnStart 钩子函数的 方法
+	CallOnConnStop(connection IConnection)
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 )
 
 /*
@@ -32,23 +33,11 @@ type Connection struct {
 
 	// 当前的处理方法
 	MsgHandler ziface.IMsgHandler
-}
 
-func NewConnection(server ziface.IServer, conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandler) ziface.IConnection {
-	c := &Connection{
-		TcpServer:  server,
-		Conn:       conn,
-		ConnID:     connID,
-		MsgHandler: msgHandler,
-		isClosed:   false,
-		msgChan:    make(chan []byte),
-		ExitChan:   make(chan bool, 1),
-	}
-
-	// 将conn加入ConnMgr
-	c.TcpServer.GetConnMgr().Add(c)
-
-	return c
+	// 连接属性集合
+	property map[string]interface{}
+	// 保护连接属性的锁
+	propertyLock sync.RWMutex
 }
 
 // 读业务
@@ -131,6 +120,9 @@ func (c *Connection) Start() {
 	go c.StartReader()
 	// 启动从当前连接写业务数据
 	go c.StartWriter()
+
+	// 调用开发者在创建连接后需要执行的业务
+	c.TcpServer.CallOnConnStart(c)
 }
 
 func (c *Connection) Stop() {
@@ -140,6 +132,9 @@ func (c *Connection) Stop() {
 		return
 	}
 	c.isClosed = true
+
+	// 调用开发者在销毁连接前需要执行的业务
+	c.TcpServer.CallOnConnStop(c)
 
 	// 关闭 socket
 	c.Conn.Close()
@@ -185,4 +180,51 @@ func (c *Connection) SendMsg(msgId uint32, data []byte) error {
 	c.msgChan <- binaryMsg
 
 	return nil
+}
+
+// 获取连接属性
+func (c *Connection) GetProperty(key string) (interface{}, error) {
+	c.propertyLock.Lock()
+	defer c.propertyLock.Unlock()
+
+	if value, ok := c.property[key]; ok {
+		return value, nil
+	} else {
+		return nil, errors.New("no property found")
+	}
+}
+
+// 设置连接属性
+func (c *Connection) SetProperty(key string, value interface{}) {
+	c.propertyLock.Lock()
+	defer c.propertyLock.Unlock()
+
+	c.property[key] = value
+}
+
+// 移除连接属性
+func (c *Connection) RemoveProperty(key string) {
+	c.propertyLock.Lock()
+	defer c.propertyLock.Unlock()
+
+	// 删除属性
+	delete(c.property, key)
+}
+
+func NewConnection(server ziface.IServer, conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandler) ziface.IConnection {
+	c := &Connection{
+		TcpServer:  server,
+		Conn:       conn,
+		ConnID:     connID,
+		MsgHandler: msgHandler,
+		isClosed:   false,
+		msgChan:    make(chan []byte),
+		ExitChan:   make(chan bool, 1),
+		property:   map[string]interface{}{},
+	}
+
+	// 将conn加入ConnMgr
+	c.TcpServer.GetConnMgr().Add(c)
+
+	return c
 }

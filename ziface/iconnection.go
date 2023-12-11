@@ -21,4 +21,11 @@ type IConnection interface {
 
 	// 发送数据
 	SendMsg(msgId uint32, data []byte) error
+
+	// 获取连接属性
+	GetProperty(key string) (interface{}, error)
+	// 设置连接属性
+	SetProperty(key string, value interface{})
+	// 移除连接属性
+	RemoveProperty(key string)
 }
